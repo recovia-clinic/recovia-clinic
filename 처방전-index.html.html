@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RECOVIA 레코바 — 클리닉 처방전 시스템</title>
+<style>
+/* ===== 리셋 & 전역 ===== */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f0f2f5;color:#1a1a1a;font-size:14px;min-height:100vh}
+
+/* ===== 로그인 화면 ===== */
+#loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(135deg,#1B2E4B 0%,#2a4570 100%)}
+.login-card{background:#fff;border-radius:20px;padding:40px 36px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo .brand{font-size:28px;font-weight:800;color:#1B2E4B;letter-spacing:.15em}
+.login-logo .brand-ko{font-size:13px;color:#A8D5C2;font-weight:600;margin-top:2px}
+.login-logo .tagline{font-size:11px;color:#aaa;margin-top:4px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:6px}
+.form-group input{width:100%;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;transition:border-color .2s;font-family:inherit}
+.form-group input:focus{border-color:#1B2E4B}
+.pin-row{display:flex;gap:10px;justify-content:center;margin:8px 0}
+.pin-input{width:52px;height:52px;text-align:center;font-size:22px;font-weight:700;border:2px solid #e0e0e0;border-radius:10px;outline:none;transition:all .2s;color:#1B2E4B}
+.pin-input:focus{border-color:#A8D5C2;background:#f0faf6}
+.btn-login{width:100%;padding:14px;background:#1B2E4B;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;transition:background .2s;font-family:inherit}
+.btn-login:hover{background:#253f68}
+.login-error{color:#e74c3c;font-size:12px;text-align:center;margin-top:8px;min-height:18px}
+.login-hint{font-size:11px;color:#bbb;text-align:center;margin-top:16px}
+
+/* ===== 메인 앱 ===== */
+#app{display:none;min-height:100vh;flex-direction:column}
+
+/* ===== 헤더 ===== */
+.app-header{background:#1B2E4B;padding:0 16px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.header-inner{max-width:860px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:52px}
+.header-brand{display:flex;flex-direction:column}
+.header-brand .brand{font-size:15px;font-weight:800;color:#fff;letter-spacing:.12em}
+.header-brand .clinic-name{font-size:11px;color:#A8D5C2;margin-top:1px}
+.header-right{display:flex;align-items:center;gap:10px}
+.header-clinic-code{font-size:11px;color:#6b8fbe;background:rgba(255,255,255,.08);padding:3px 10px;border-radius:20px}
+.btn-logout{padding:5px 12px;border:1px solid rgba(255,255,255,.25);border-radius:8px;background:none;color:#A8D5C2;font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit}
+.btn-logout:hover{background:rgba(255,255,255,.1)}
+
+/* ===== 탭 ===== */
+.tab-nav{background:#1B2E4B;border-top:1px solid rgba(255,255,255,.08);padding:0 16px;overflow-x:auto;white-space:nowrap}
+.tab-nav-inner{max-width:860px;margin:0 auto;display:flex;gap:2px}
+.tab-btn{padding:10px 18px;color:#A8D5C2;font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;font-family:inherit}
+.tab-btn.active{color:#fff;border-bottom-color:#A8D5C2}
+.tab-btn:hover{color:#fff}
+.tab-pane{display:none;padding:20px 16px;max-width:860px;margin:0 auto;width:100%}
+.tab-pane.active{display:block}
+
+/* ===== 카드 ===== */
+.card{background:#fff;border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.card h3{font-size:13px;font-weight:600;color:#1B2E4B;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:6px}
+
+/* ===== 버튼 ===== */
+.btn{padding:9px 16px;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit}
+.btn-primary{background:#1B2E4B;color:#fff}.btn-primary:hover{background:#253f68}
+.btn-mint{background:#A8D5C2;color:#1B2E4B}.btn-mint:hover{background:#8fc9b2}
+.btn-gray{background:#eee;color:#555}.btn-gray:hover{background:#ddd}
+.btn-danger{background:#fee2e2;color:#c00}.btn-danger:hover{background:#fecaca}
+.btn-sm{padding:6px 11px;font-size:12px}
+
+/* ===== 입력 ===== */
+input[type="text"],select,textarea{padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;transition:border-color .2s;font-family:inherit;width:100%}
+input[type="text"]:focus,select:focus{border-color:#1B2E4B}
+
+/* ===== 칩 ===== */
+.chip-group{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 12px;border-radius:20px;border:1.5px solid #e0e0e0;background:#fff;cursor:pointer;font-size:13px;transition:all .15s;user-select:none}
+.chip:hover{border-color:#A8D5C2}
+.chip.selected{border-color:#1B2E4B;background:#1B2E4B;color:#fff}
+.chip.custom{border-style:dashed}
+.cat-label{font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px}
+
+/* ===== 피부타입 ===== */
+.skin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.skin-chip{padding:10px 6px;border-radius:8px;border:1.5px solid #e0e0e0;background:#fff;cursor:pointer;font-size:12px;text-align:center;transition:all .15s}
+.skin-chip:hover{border-color:#A8D5C2}
+.skin-chip.selected{border-color:#1B2E4B;background:#1B2E4B;color:#fff}
+.skin-chip .code{font-size:15px;font-weight:700;margin-bottom:2px}
+.skin-result-badge{display:inline-block;background:#e8f5f0;color:#1B2E4B;font-weight:700;padding:6px 14px;border-radius:20px;font-size:14px;border:1.5px solid #A8D5C2}
+
+/* ===== 처방전 출력 ===== */
+.lang-btns{display:flex;gap:8px;flex-wrap:wrap}
+.lang-btn{padding:7px 16px;border-radius:8px;border:1.5px solid #e0e0e0;background:#fff;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;font-family:inherit}
+.lang-btn.active{border-color:#1B2E4B;background:#1B2E4B;color:#fff}
+.rx-preview{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:24px;font-size:13px;line-height:1.75}
+.rx-header{text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2.5px solid #1B2E4B}
+.rx-header .clinic-nm{font-size:11px;color:#999;margin-bottom:4px}
+.rx-header .brand-big{font-size:22px;font-weight:800;color:#1B2E4B;letter-spacing:.15em}
+.rx-header .brand-ko-sm{font-size:12px;color:#A8D5C2;font-weight:600}
+.rx-meta{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin-bottom:16px;font-size:12px}
+.rx-meta-item{display:flex;gap:6px}
+.rx-meta-label{color:#999;min-width:52px;flex-shrink:0}
+.rx-serial-badge{font-size:11px;font-weight:700;color:#1B2E4B;letter-spacing:.05em}
+.rx-section-title{font-size:11px;font-weight:700;color:#1B2E4B;letter-spacing:.08em;text-transform:uppercase;border-left:3px solid #A8D5C2;padding-left:8px;margin:14px 0 8px}
+.rx-product{display:flex;gap:8px;align-items:flex-start;margin-bottom:7px;padding:8px 10px;background:#f9f9f9;border-radius:8px}
+.rx-num{width:22px;height:22px;border-radius:50%;background:#1B2E4B;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.rx-pname{font-weight:600;font-size:13px}
+.rx-phow{font-size:11px;color:#666;margin-top:2px}
+.rx-tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:4px;margin-right:4px}
+.tag-morning{background:#fff3cd;color:#856404}
+.tag-evening{background:#cfe2ff;color:#084298}
+.tag-asap{background:#d1e7dd;color:#0a5b34}
+.rx-routine-row{display:flex;gap:8px;margin-bottom:6px;font-size:12px;align-items:flex-start}
+.rx-day-badge{background:#1B2E4B;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;white-space:nowrap;flex-shrink:0}
+.rx-caution-item{font-size:12px;margin-bottom:4px;padding-left:12px;position:relative}
+.rx-caution-item::before{content:'•';position:absolute;left:2px;color:#A8D5C2}
+.rx-footer{text-align:center;font-size:11px;color:#bbb;margin-top:16px;padding-top:12px;border-top:1px solid #eee}
+.save-status{font-size:12px;color:#888;display:inline-block;margin-left:10px}
+
+/* ===== 설정 탭 ===== */
+.setting-group{margin-bottom:16px}
+.setting-label{font-size:12px;font-weight:600;color:#555;margin-bottom:6px;display:block}
+.setting-hint{font-size:11px;color:#bbb;margin-top:4px}
+
+/* ===== 번역 결과 행 ===== */
+.np-row{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background .15s;border-bottom:1px solid #f0f0f0}
+.np-row:last-child{border-bottom:none}
+.np-row:hover{background:#f0faf6}
+.np-row.selected{background:#e8f5f0;border-left:3px solid #A8D5C2}
+.np-flag{font-size:16px;width:22px;flex-shrink:0}
+.np-lang{font-size:11px;color:#bbb;width:44px;flex-shrink:0;font-weight:600}
+.np-val{flex:1;font-size:14px;font-weight:500;color:#1B2E4B}
+
+/* ===== 언어 번역 버튼 ===== */
+.lang-trans-btn{padding:7px 14px;border:1.5px solid #e0e0e0;border-radius:20px;background:#fff;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;transition:all .15s;color:#555}
+.lang-trans-btn:hover{border-color:#A8D5C2;background:#f0faf6;color:#1B2E4B}
+.lang-trans-btn.active{border-color:#1B2E4B;background:#1B2E4B;color:#fff}
+
+/* ===== 인쇄 ===== */
+@media print{
+  @page{size:A4 portrait;margin:12mm 14mm}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  #loginScreen,#app .app-header,.tab-nav,.no-print{display:none!important}
+  .tab-pane{display:block!important;padding:0!important}
+  .tab-pane:not(#tab-rx){display:none!important}
+  .rx-preview{border:none;box-shadow:none;padding:0;font-size:13px;line-height:1.65}
+  .card{box-shadow:none;padding:0;margin:0}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== 로그인 화면 ===================== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="brand">RECOVIA</div>
+      <div class="brand-ko">레코바</div>
+      <div class="tagline">Where Your Skin Recovers</div>
+    </div>
+
+    <div class="form-group">
+      <label>클리닉 코드</label>
+      <input type="text" id="loginCode" placeholder="클리닉 코드 또는 병원명 입력" autocomplete="off"
+        onkeydown="if(event.key==='Enter')focusPin()">
+    </div>
+
+    <div class="form-group">
+      <label>PIN 번호 (4자리)</label>
+      <div class="pin-row">
+        <input type="password" class="pin-input" maxlength="1" id="pin1" oninput="pinMove(1)" onkeydown="pinBack(event,1)">
+        <input type="password" class="pin-input" maxlength="1" id="pin2" oninput="pinMove(2)" onkeydown="pinBack(event,2)">
+        <input type="password" class="pin-input" maxlength="1" id="pin3" oninput="pinMove(3)" onkeydown="pinBack(event,3)">
+        <input type="password" class="pin-input" maxlength="1" id="pin4" oninput="pinMove(4)" onkeydown="pinBack(event,4)" onkeydown2="if(event.key==='Enter')doLogin()">
+      </div>
+    </div>
+
+    <button class="btn-login" onclick="doLogin()">로그인</button>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
+      <input type="checkbox" id="rememberMe" style="width:16px;height:16px;accent-color:#1B2E4B;cursor:pointer">
+      <label for="rememberMe" style="font-size:13px;color:#555;cursor:pointer">로그인 기억 (30일)</label>
+    </div>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-hint">클리닉 코드와 PIN은 RECOVIA에서 발급해드립니다.<br><span style="color:#ccc">코드는 대소문자 구별 없이 입력 가능합니다.</span></div>
+  </div>
+</div>
+
+<!-- ===================== 메인 앱 ===================== -->
+<div id="app">
+  <div class="app-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="brand">RECOVIA</div>
+        <div class="clinic-name" id="headerClinicName">—</div>
+      </div>
+      <div class="header-right">
+        <span class="header-clinic-code" id="headerCode">—</span>
+        <span id="discountBadge" style="display:none;font-size:11px;color:#A8D5C2;background:rgba(168,213,194,.15);border:1px solid rgba(168,213,194,.4);padding:3px 10px;border-radius:20px"></span>
+        <button class="btn-logout" onclick="doLogout()">로그아웃</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-nav">
+    <div class="tab-nav-inner">
+      <button class="tab-btn active" onclick="switchTab('input')">① 환자·시술</button>
+      <button class="tab-btn" onclick="switchTab('skin')">② 피부타입</button>
+      <button class="tab-btn" onclick="switchTab('rx')">③ 처방전 출력</button>
+      <button class="tab-btn" onclick="switchTab('manage')">시술 관리</button>
+      <button class="tab-btn" onclick="switchTab('settings')">⚙ 설정</button>
+    </div>
+  </div>
+
+  <!-- ① 환자·시술 입력 -->
+  <div id="tab-input" class="tab-pane active">
+    <div class="card">
+      <h3>👤 환자명</h3>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="patientKo" placeholder="성함을 입력하세요"
+          oninput="onNameInput()" autocomplete="off">
+        <button class="btn btn-primary" id="nameTransBtn" onclick="translateName()" disabled>🌐 번역</button>
+        <button class="btn btn-gray btn-sm" onclick="clearPatient()">초기화</button>
+      </div>
+      <!-- 번역 결과 — 라벨과 동일한 방식 -->
+      <div id="namePreview" style="display:none;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;margin-top:4px">
+        <div style="font-size:11px;color:#999;padding:6px 12px;background:#f8f8f8;border-bottom:1px solid #e0e0e0">
+          번역 결과 — 클릭하면 해당 언어로 선택됩니다
+        </div>
+        <div class="np-row" id="npRow_en" onclick="selectName('en')">
+          <span class="np-flag">🇺🇸</span><span class="np-lang">EN</span>
+          <span class="np-val" id="npEn">—</span>
+          <span class="np-check" id="npChk_en" style="display:none;color:#A8D5C2;font-size:12px;font-weight:600">✓ 선택됨</span>
+        </div>
+        <div class="np-row" id="npRow_zh" onclick="selectName('zh')">
+          <span class="np-flag">🇨🇳</span><span class="np-lang">中文</span>
+          <span class="np-val" id="npZh">—</span>
+          <span class="np-check" id="npChk_zh" style="display:none;color:#A8D5C2;font-size:12px;font-weight:600">✓ 선택됨</span>
+        </div>
+        <div class="np-row" id="npRow_ja" onclick="selectName('ja')">
+          <span class="np-flag">🇯🇵</span><span class="np-lang">日本語</span>
+          <span class="np-val" id="npJa">—</span>
+          <span class="np-check" id="npChk_ja" style="display:none;color:#A8D5C2;font-size:12px;font-weight:600">✓ 선택됨</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>💉 시술 선택 <span style="font-size:11px;color:#bbb;font-weight:400">(복수 선택 가능)</span></h3>
+      <div id="treatmentChips"></div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #f0f0f0">
+        <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">시술 직접 추가</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" id="customTreat" placeholder="시술명..." style="flex:1;min-width:120px">
+          <select id="customCat" style="width:auto">
+            <option>레이저·필링</option><option>고주파·초음파</option>
+            <option>필러·보톡스</option><option>스킨부스터·재생</option><option>기타</option>
+          </select>
+          <button class="btn btn-mint" onclick="addCustom()">+ 추가</button>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        <button class="btn btn-gray btn-sm" onclick="clearTx()">선택 해제</button>
+        <span style="font-size:12px;color:#aaa" id="txCount">선택: 0개</span>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn btn-primary" onclick="switchTab('skin')">다음: 피부타입 →</button>
+    </div>
+  </div>
+
+  <!-- ② 피부타입 -->
+  <div id="tab-skin" class="tab-pane">
+    <div class="card">
+      <h3>🧴 피부타입 선택</h3>
+      <p style="font-size:12px;color:#999;margin-bottom:12px">세안 후 30분 기준으로 선택하세요.</p>
+      <div class="cat-label">수분·유분 (1개 선택)</div>
+      <div class="skin-grid" id="skinA1"></div>
+      <div class="cat-label" style="margin-top:14px">반응성·민감도 (중복 선택 가능)</div>
+      <div class="skin-grid" id="skinA2"></div>
+      <div style="margin-top:14px;padding:10px 14px;background:#f0faf6;border-radius:8px;font-size:13px">
+        선택된 피부타입: <span class="skin-result-badge" id="skinResult">미선택</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between">
+      <button class="btn btn-gray" onclick="switchTab('input')">← 이전</button>
+      <button class="btn btn-primary" onclick="generateRx();switchTab('rx')">처방전 생성 →</button>
+    </div>
+  </div>
+
+  <!-- ③ 처방전 출력 -->
+  <div id="tab-rx" class="tab-pane">
+    <div class="card no-print">
+      <h3>🌐 언어 선택</h3>
+      <div class="lang-btns">
+        <button class="lang-btn active" onclick="setLang('ko')">한국어</button>
+        <button class="lang-btn" onclick="setLang('en')">English</button>
+        <button class="lang-btn" onclick="setLang('zh')">中文</button>
+        <button class="lang-btn" onclick="setLang('ja')">日本語</button>
+      </div>
+    </div>
+    <div class="no-print" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-primary" onclick="savePrint()">💾 저장 + PDF 출력</button>
+      <button class="btn btn-mint" onclick="window.print()">🖨 인쇄만</button>
+      <button class="btn btn-gray btn-sm" onclick="generateRx()">새로고침</button>
+      <span class="save-status" id="saveStatus"></span>
+    </div>
+    <div id="rxOutput" class="rx-preview">
+      <p style="color:#ccc;text-align:center;padding:48px">① 탭에서 환자·시술을 선택한 후 처방전을 생성하세요.</p>
+    </div>
+  </div>
+
+  <!-- 시술 관리 -->
+  <div id="tab-manage" class="tab-pane">
+    <div class="card">
+      <h3>📋 등록된 시술 목록</h3>
+      <div style="margin-bottom:10px">
+        <select id="filterCat" onchange="renderManage()" style="width:auto">
+          <option>전체</option><option>레이저·필링</option><option>고주파·초음파</option>
+          <option>필러·보톡스</option><option>스킨부스터·재생</option><option>기타</option>
+        </select>
+      </div>
+      <div id="manageList"></div>
+    </div>
+  </div>
+
+  <!-- ⚙ 설정 -->
+  <div id="tab-settings" class="tab-pane">
+    <div class="card">
+      <h3>🏥 클리닉 정보</h3>
+      <div style="background:#f0faf6;border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:14px">
+        <div style="font-weight:600;color:#1B2E4B;margin-bottom:4px" id="settingClinicName">—</div>
+        <div style="color:#888;font-size:12px">클리닉 코드: <strong id="settingCode" style="color:#1B2E4B">—</strong></div>
+      </div>
+      <div class="setting-group">
+        <label class="setting-label">병원명 변경</label>
+        <input type="text" id="clinicNameInput" placeholder="변경할 병원명 입력">
+        <div class="setting-hint">처방전 헤더에 표시되는 병원명을 변경합니다. 변경 후 설정 저장을 눌러주세요.</div>
+      </div>
+      <div class="setting-group">
+        <label class="setting-label">Google Sheets GAS URL</label>
+        <input type="text" id="gasUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+        <div class="setting-hint">저장 버튼 클릭 시 이 URL로 처방 기록이 전송됩니다.</div>
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
+      <span id="settingSaved" style="font-size:12px;color:#A8D5C2;margin-left:10px"></span>
+    </div>
+
+    <div class="card">
+      <h3>🔑 PIN 변경</h3>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <label class="setting-label">현재 PIN</label>
+          <input type="password" id="curPin" maxlength="4" placeholder="현재 4자리 PIN">
+        </div>
+        <div>
+          <label class="setting-label">새 PIN</label>
+          <input type="password" id="newPin" maxlength="4" placeholder="새 4자리 PIN">
+        </div>
+        <div>
+          <label class="setting-label">새 PIN 확인</label>
+          <input type="password" id="newPin2" maxlength="4" placeholder="새 PIN 재입력">
+        </div>
+        <button class="btn btn-mint" onclick="changePin()">PIN 변경</button>
+        <span id="pinMsg" style="font-size:12px;color:#e74c3c"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🆘 PIN 초기화 (잊어버렸을 때)</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.7">
+        PIN을 잊어버리셨다면 RECOVIA에서 발급받은 <strong>마스터 코드</strong>를 입력하세요.<br>
+        마스터 코드가 없으면 레코바 본원에 연락해 발급받으세요.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <label class="setting-label">마스터 코드 (RECOVIA 발급)</label>
+          <input type="password" id="masterCode" placeholder="마스터 코드 입력...">
+        </div>
+        <div>
+          <label class="setting-label">새 PIN (4자리 숫자)</label>
+          <input type="password" id="masterNewPin" maxlength="4" placeholder="새로 사용할 PIN 4자리">
+        </div>
+        <div>
+          <label class="setting-label">새 PIN 확인</label>
+          <input type="password" id="masterNewPin2" maxlength="4" placeholder="새 PIN 재입력">
+        </div>
+        <button class="btn btn-danger" onclick="resetPinByMaster()">🔓 마스터 코드로 PIN 초기화</button>
+        <span id="masterMsg" style="font-size:12px;color:#e74c3c"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📞 문의 & 지원</h3>
+      <div style="font-size:13px;line-height:2;color:#555">
+        <div>🏥 <strong>RECOVIA 레코바 본원</strong></div>
+        <div>• PIN 초기화 / 마스터 코드 발급</div>
+        <div>• 클리닉 코드 신규 등록</div>
+        <div>• 시스템 오류 문의</div>
+        <div style="margin-top:8px;padding:10px 12px;background:#f0faf6;border-radius:8px;font-size:12px;color:#1B2E4B">
+          레코바 본원에 연락하시면 클리닉 코드로 초기화해 드립니다.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// ★ RECOVIA 어드민 전용 — 클리닉 등록 방법 (v2: Sheets 중앙관리)
+// ================================================================
+// 새 클리닉 추가 시:
+//   1. CLINIC_DB(로컬 폴백)에 항목 추가 — 오프라인 대비용
+//   2. GAS handleAddClinic() 또는 RECOVIA_클리닉DB Sheet에 직접 행 추가
+//   3. HTML 파일은 재배포 불필요 (클리닉 정보는 GAS에서 실시간 조회)
+//
+// PIN 초기화 처리 시:
+//   클리닉에서 ⚙ 설정 탭 > PIN 초기화 메뉴에서
+//   마스터 코드 입력 후 새 PIN 설정 가능
+// ================================================================
+
+// ★ 중앙 GAS URL
+const MASTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbx1-a9-Sy5ibqiTzx4B683XIYnM8gnvw1vioyQ7Aj2MTaEZWjNuaivhq7yxVr7RqT1_8A/exec';
+
+// ★ 로컬 폴백 클리닉 DB (GAS 응답 실패 시 사용)
+const CLINIC_DB = {
+  'RECOVIA001': { name: '레코바 피부과의원 (본원)', pin: '1234' },
+  'CLINIC002':  { name: '새 클리닉', pin: '1234' },
+};
+
+// ★ 제품 목록 — GAS에서 동적으로 불러옴. 실패 시 이 기본값 사용
+let PRODUCT_INFO_DYNAMIC = null; // GAS 로드 성공 시 채워짐
+
+// GAS에서 제품 목록 불러오기 (앱 시작 시 1회)
+async function loadProductsFromGAS() {
+  try {
+    const res = await fetch(`${MASTER_GAS_URL}?action=getProducts`);
+    const data = await res.json();
+    if (data.ok && data.products?.length) {
+      // GAS 제품 데이터를 PRODUCT_INFO 형식으로 변환
+      const map = {};
+      data.products.forEach(p => {
+        // 기존 PRODUCT_INFO에 없는 신규 제품이면 기본 구조 생성
+        if (!PRODUCT_INFO[p['제품명']]) {
+          map[p['제품명']] = {
+            ko: p['제품명'], en: p['제품명'], zh: p['제품명'], ja: p['제품명'],
+            how: { ko:'의사 처방에 따라 사용', en:'Use as directed', zh:'遵医嘱使用', ja:'医師の指示に従い使用' },
+            tag: 'morning',
+            supplyPrice: Number(p['공급가'] || 0),
+            productCode: p['제품코드'] || '',
+          };
+        } else {
+          // 기존 제품이면 공급가/코드만 보완
+          map[p['제품명']] = {
+            ...PRODUCT_INFO[p['제품명']],
+            supplyPrice: Number(p['공급가'] || 0),
+            productCode: p['제품코드'] || '',
+          };
+        }
+      });
+      PRODUCT_INFO_DYNAMIC = { ...PRODUCT_INFO, ...map };
+      console.log('[RECOVIA] 제품 목록 GAS 로드 완료:', Object.keys(PRODUCT_INFO_DYNAMIC).length + '종');
+    }
+  } catch (e) {
+    console.warn('[RECOVIA] 제품 목록 GAS 로드 실패, 기본값 사용:', e.message);
+  }
+}
+
+// 실제 사용할 PRODUCT_INFO 반환 (동적 > 정적 순)
+function getProductInfo() {
+  return PRODUCT_INFO_DYNAMIC || PRODUCT_INFO;
+}
+
+// GAS에서 클리닉 정보 조회 (로그인 시)
+async function fetchClinicFromGAS(clinicCode) {
+  try {
+    const res = await fetch(`${MASTER_GAS_URL}?action=getClinicInfo&clinicCode=${encodeURIComponent(clinicCode)}`);
+    const data = await res.json();
+    if (data.ok && data.active) return data;
+  } catch (e) {
+    console.warn('[RECOVIA] GAS 클리닉 조회 실패, 로컬 폴백 사용:', e.message);
+  }
+  return null;
+}
+
+// ================================================================
+// 시술 데이터 — 루틴·주의사항 4개 언어 완전 지원
+// routine / cautions 모두 { ko, en, zh, ja } 구조
+// ================================================================
+const DEFAULT_TX = [
+  { cat:'레이저·필링', name:'레이저',
+    products:['Soothing Ampoule','Cooling Gel','Mineral Shield SPF50+'],
+    routine:{
+      '0-1':{ ko:'쿨링젤 즉시 → 수딩앰플 부드럽게 흡수', en:'Apply Cooling Gel immediately → Soothing Ampoule gently', zh:'立即涂抹冷却凝胶 → 轻柔吸收舒缓精华', ja:'クーリングジェルを即時塗布 → スージングアンプルを優しく吸収' },
+      '2-4':{ ko:'수딩앰플 아침·저녁, 선크림 필수', en:'Soothing Ampoule AM/PM, SPF50+ required', zh:'早晚使用舒缓精华，必须涂抹防晒霜', ja:'スージングアンプル朝晩，日焼け止め必須' },
+      '5-7':{ ko:'수딩앰플 + 선크림 유지', en:'Continue Soothing Ampoule + SPF50+', zh:'继续使用舒缓精华+防晒霜', ja:'スージングアンプル＋日焼け止めを継続' },
+      '1-4주':{ ko:'선크림 매일 도포', en:'Apply SPF50+ every day', zh:'每天涂抹防晒霜', ja:'毎日日焼け止めを塗布' }
+    },
+    cautions:[
+      { ko:'48시간 자외선 차단 철저', en:'Strict sun protection for 48 hours', zh:'48小时严格防晒', ja:'48時間は徹底的に紫外線を避ける' },
+      { ko:'각질 제거 금지 (자연 탈각)', en:'No exfoliation – allow natural peeling', zh:'禁止去角质，让其自然脱落', ja:'角質除去禁止（自然な剥離を待つ）' },
+      { ko:'세안 시 미지근한 물 사용', en:'Cleanse with lukewarm water only', zh:'洗脸时只用温水', ja:'洗顔はぬるま湯のみ使用' }
+    ]
+  },
+  { cat:'레이저·필링', name:'필링',
+    products:['Soothing Ampoule','Mineral Shield SPF50+'],
+    routine:{
+      '0-1':{ ko:'수딩앰플 즉시 도포', en:'Apply Soothing Ampoule immediately', zh:'立即涂抹舒缓精华', ja:'スージングアンプルを即時塗布' },
+      '2-4':{ ko:'수딩앰플 2회 + 선크림', en:'Soothing Ampoule twice daily + SPF50+', zh:'舒缓精华每日2次+防晒霜', ja:'スージングアンプル1日2回＋日焼け止め' },
+      '5-7':{ ko:'보습 + 자외선 차단 유지', en:'Continue moisturizing + sun protection', zh:'持续保湿+防晒', ja:'保湿＋紫外線対策を継続' }
+    },
+    cautions:[
+      { ko:'색소 침착 예방을 위해 자외선 차단 필수', en:'SPF essential to prevent pigmentation', zh:'必须防晒以预防色素沉着', ja:'色素沈着予防のため日焼け止め必須' },
+      { ko:'세안 후 충분한 보습', en:'Moisturize thoroughly after cleansing', zh:'洁面后充分保湿', ja:'洗顔後に十分な保湿を行う' }
+    ]
+  },
+  { cat:'레이저·필링', name:'IPL',
+    products:['Soothing Ampoule','Mineral Shield SPF50+'],
+    routine:{
+      '0-1':{ ko:'수딩앰플 즉시 적용', en:'Apply Soothing Ampoule immediately', zh:'立即使用舒缓精华', ja:'スージングアンプルを即時使用' },
+      '2-4':{ ko:'자외선 차단 + 수딩앰플 유지', en:'SPF50+ + Soothing Ampoule daily', zh:'每天防晒+舒缓精华', ja:'日焼け止め＋スージングアンプル毎日' }
+    },
+    cautions:[
+      { ko:'일주일간 자외선 노출 최소화', en:'Minimize sun exposure for one week', zh:'一周内尽量避免日晒', ja:'1週間は日光を最小限に' },
+      { ko:'알코올 성분 화장품 사용 금지', en:'Avoid alcohol-based cosmetics', zh:'禁止使用含酒精化妆品', ja:'アルコール成分の化粧品禁止' }
+    ]
+  },
+  { cat:'레이저·필링', name:'메조테라피',
+    products:['Soothing Ampoule','Deep Hydration Ampoule'],
+    routine:{
+      '0-1':{ ko:'수딩앰플 도포 (세안 자제)', en:'Apply Soothing Ampoule (avoid washing)', zh:'涂抹舒缓精华（避免洗脸）', ja:'スージングアンプル塗布（洗顔自重）' },
+      '2-4':{ ko:'딥수분앰플 + 수딩앰플 병행', en:'Deep Hydration + Soothing Ampoule together', zh:'深层保湿精华+舒缓精华同时使用', ja:'ディープモイスチャー＋スージングアンプル併用' },
+      '5-7':{ ko:'수분 집중 관리 유지', en:'Continue intensive hydration', zh:'持续集中保湿护理', ja:'集中保湿ケアを継続' }
+    },
+    cautions:[
+      { ko:'시술 당일 세안 4시간 후부터', en:'Cleanse no earlier than 4 hours after treatment', zh:'治疗当天4小时后再洗脸', ja:'施術当日は4時間後から洗顔可' },
+      { ko:'강한 마사지 금지', en:'Avoid vigorous massage', zh:'禁止用力按摩', ja:'強いマッサージ禁止' }
+    ]
+  },
+  { cat:'고주파·초음파', name:'울쎄라',
+    products:['Deep Hydration Ampoule','Peptide Repair Cream','Mineral Shield SPF50+'],
+    routine:{
+      '0-1':{ ko:'딥수분앰플 즉시 + 냉찜질 병행', en:'Deep Hydration Ampoule immediately + cold compress', zh:'立即使用深层保湿精华+冷敷', ja:'ディープモイスチャーアンプル即時＋冷湿布' },
+      '2-4':{ ko:'펩타이드크림 저녁 + 딥수분앰플 아침·저녁', en:'Peptide Cream evening + Deep Hydration AM/PM', zh:'晚间肽修复霜+早晚深层保湿精华', ja:'ペプチドクリーム夜＋ディープモイスチャー朝晩' },
+      '5-7':{ ko:'보습 집중 관리', en:'Intensive moisturizing care', zh:'集中保湿护理', ja:'集中保湿ケア' },
+      '1-4주':{ ko:'선크림 매일 도포', en:'Apply SPF50+ every day', zh:'每天涂抹防晒霜', ja:'毎日日焼け止めを塗布' }
+    },
+    cautions:[
+      { ko:'3~5일 부종 정상 반응', en:'Swelling for 3–5 days is normal', zh:'3~5天肿胀属正常反应', ja:'3〜5日の浮腫は正常反応' },
+      { ko:'고온 사우나 1주일 금지', en:'No hot sauna for one week', zh:'一周内禁止高温桑拿', ja:'1週間高温サウナ禁止' },
+      { ko:'자외선 차단 매일 필수', en:'Daily sun protection required', zh:'每天必须防晒', ja:'毎日日焼け止め必須' }
+    ]
+  },
+  { cat:'고주파·초음파', name:'써마지',
+    products:['Deep Hydration Ampoule','Peptide Repair Cream','Mineral Shield SPF50+'],
+    routine:{
+      '0-1':{ ko:'수분앰플 즉시 도포', en:'Apply hydration ampoule immediately', zh:'立即涂抹保湿精华', ja:'保湿アンプルを即時塗布' },
+      '2-4':{ ko:'펩타이드크림 저녁 집중 도포', en:'Peptide Cream intensive in the evening', zh:'晚间集中使用肽修复霜', ja:'夜にペプチドクリームを集中塗布' }
+    },
+    cautions:[
+      { ko:'고온 사우나 1주일 금지', en:'No hot sauna for one week', zh:'一周内禁止高温桑拿', ja:'1週間高温サウナ禁止' },
+      { ko:'강한 마사지 금지', en:'Avoid vigorous massage', zh:'禁止用力按摩', ja:'強いマッサージ禁止' }
+    ]
+  },
+  { cat:'고주파·초음파', name:'온다',
+    products:['Soothing Ampoule','Deep Hydration Ampoule'],
+    routine:{
+      '0-1':{ ko:'수딩앰플 즉시 적용', en:'Apply Soothing Ampoule immediately', zh:'立即使用舒缓精华', ja:'スージングアンプルを即時使用' },
+      '2-4':{ ko:'수분 집중 보충', en:'Intensive hydration replenishment', zh:'集中补水', ja:'集中保湿補給' }
+    },
+    cautions:[
+      { ko:'부종 2~3일 정상', en:'Swelling for 2–3 days is normal', zh:'2~3天肿胀属正常', ja:'2〜3日の浮腫は正常' },
+      { ko:'격렬한 운동 3일 금지', en:'No intense exercise for 3 days', zh:'3天内禁止剧烈运动', ja:'3日間激しい運動禁止' }
+    ]
+  },
+  { cat:'고주파·초음파', name:'인모드',
+    products:['Soothing Ampoule','Recovery Barrier Cream'],
+    routine:{
+      '0-1':{ ko:'수딩앰플 즉시 도포', en:'Apply Soothing Ampoule immediately', zh:'立即涂抹舒缓精华', ja:'スージングアンプルを即時塗布' },
+      '2-4':{ ko:'배리어크림 저녁 도포', en:'Apply Barrier Cream in the evening', zh:'晚间使用修复屏障霜', ja:'夜にバリアクリームを塗布' }
+    },
+    cautions:[
+      { ko:'강한 자외선 노출 자제', en:'Avoid strong sunlight', zh:'避免强烈日晒', ja:'強い紫外線を避ける' },
+      { ko:'가려움 심하면 내원', en:'Visit clinic if severe itching occurs', zh:'瘙痒严重请就诊', ja:'かゆみが強い場合は来院' }
+    ]
+  },
+  { cat:'고주파·초음파', name:'슈링크',
+    products:['Deep Hydration Ampoule','Mineral Shield SPF50+'],
+    routine:{
+      '0-1':{ ko:'딥수분앰플 즉시 도포', en:'Apply Deep Hydration Ampoule immediately', zh:'立即涂抹深层保湿精华', ja:'ディープモイスチャーアンプル即時塗布' },
+      '2-4':{ ko:'보습 + 자외선 차단 유지', en:'Continue moisturizing + sun protection', zh:'持续保湿+防晒', ja:'保湿＋日焼け止めを継続' }
+    },
+    cautions:[
+      { ko:'부종·열감 3~5일 정상', en:'Swelling/heat sensation for 3–5 days is normal', zh:'3~5天肿胀/热感属正常', ja:'3〜5日の浮腫・熱感は正常' },
+      { ko:'고온 환경 일주일 자제', en:'Avoid high-temperature environments for one week', zh:'一周内避免高温环境', ja:'1週間高温環境を避ける' }
+    ]
+  },
+  { cat:'필러·보톡스', name:'필러',
+    products:['Anti-Bruise Arnica Gel','Soothing Ampoule','Mineral Shield SPF50+'],
+    routine:{
+      '0-1':{ ko:'아르니카젤 즉시 도포 (멍 예방)', en:'Apply Arnica Gel immediately (bruise prevention)', zh:'立即涂抹山金车凝胶（预防淤青）', ja:'アルニカジェルを即時塗布（あざ予防）' },
+      '2-4':{ ko:'수딩앰플 + 아르니카젤 병행', en:'Soothing Ampoule + Arnica Gel together', zh:'舒缓精华+山金车凝胶同时使用', ja:'スージングアンプル＋アルニカジェル併用' },
+      '5-7':{ ko:'수딩앰플 + 선크림 유지', en:'Soothing Ampoule + SPF50+ continued', zh:'舒缓精华+防晒霜持续使用', ja:'スージングアンプル＋日焼け止め継続' }
+    },
+    cautions:[
+      { ko:'48시간 격렬한 운동 금지', en:'No intense exercise for 48 hours', zh:'48小时内禁止剧烈运动', ja:'48時間激しい運動禁止' },
+      { ko:'고온 사우나 1주일 금지', en:'No hot sauna for one week', zh:'一周内禁止高温桑拿', ja:'1週間高温サウナ禁止' },
+      { ko:'시술 부위 강하게 누르지 않기', en:'Do not press the treated area hard', zh:'不要用力按压治疗部位', ja:'施術部位を強く押さない' }
+    ]
+  },
+  { cat:'필러·보톡스', name:'보톡스',
+    products:['Soothing Ampoule'],
+    routine:{
+      '0-1':{ ko:'시술 부위 건드리지 않기', en:'Do not touch the treated area', zh:'不要触碰治疗部位', ja:'施術部位に触れない' },
+      '2-4':{ ko:'수딩앰플 순하게 도포', en:'Apply Soothing Ampoule gently', zh:'轻柔涂抹舒缓精华', ja:'スージングアンプルを優しく塗布' }
+    },
+    cautions:[
+      { ko:'4시간 눕지 않기', en:'Do not lie down for 4 hours', zh:'4小时内不要躺下', ja:'4時間横にならない' },
+      { ko:'시술 부위 마사지 금지', en:'No massage on treated area', zh:'禁止按摩治疗部位', ja:'施術部位のマッサージ禁止' },
+      { ko:'격렬한 운동 24시간 금지', en:'No intense exercise for 24 hours', zh:'24小时内禁止剧烈运动', ja:'24時間激しい運動禁止' }
+    ]
+  },
+  { cat:'필러·보톡스', name:'콜라겐필러',
+    products:['Anti-Bruise Arnica Gel','Soothing Ampoule'],
+    routine:{
+      '0-1':{ ko:'아르니카젤 즉시 도포', en:'Apply Arnica Gel immediately', zh:'立即涂抹山金车凝胶', ja:'アルニカジェルを即時塗布' },
+      '2-4':{ ko:'아르니카젤 + 수딩앰플 병행', en:'Arnica Gel + Soothing Ampoule together', zh:'山金车凝胶+舒缓精华同时使用', ja:'アルニカジェル＋スージングアンプル併用' }
+    },
+    cautions:[
+      { ko:'멍 2~5일 정상', en:'Bruising for 2–5 days is normal', zh:'2~5天淤青属正常', ja:'2〜5日のあざは正常' },
+      { ko:'고온 환경 자제', en:'Avoid high-temperature environments', zh:'避免高温环境', ja:'高温環境を避ける' }
+    ]
+  },
+  { cat:'스킨부스터·재생', name:'리쥬란',
+    products:['Regeneration Booster','Soothing Ampoule','Mineral Shield SPF50+'],
+    routine:{
+      '0-1':{ ko:'재생부스터 즉시 도포', en:'Apply Regeneration Booster immediately', zh:'立即涂抹再生精华素', ja:'リジェネレーションブースターを即時塗布' },
+      '2-4':{ ko:'재생부스터 + 수딩앰플 아침·저녁', en:'Regeneration Booster + Soothing Ampoule AM/PM', zh:'早晚再生精华素+舒缓精华', ja:'再生ブースター＋スージングアンプル朝晩' },
+      '5-7':{ ko:'수딩앰플 + 선크림 유지', en:'Soothing Ampoule + SPF50+ continued', zh:'舒缓精华+防晒霜持续使用', ja:'スージングアンプル＋日焼け止め継続' },
+      '1-4주':{ ko:'재생부스터 주 2회 집중', en:'Regeneration Booster twice a week', zh:'每周2次集中使用再生精华素', ja:'再生ブースターを週2回集中使用' }
+    },
+    cautions:[
+      { ko:'구진 2~4일 정상 (제거 금지)', en:'Papules for 2–4 days are normal – do not remove', zh:'2~4天丘疹属正常，禁止挤压', ja:'2〜4日の丘疹は正常（除去禁止）' },
+      { ko:'세안 4시간 후부터', en:'Cleanse no earlier than 4 hours after', zh:'治疗后4小时后再洗脸', ja:'施術4時間後から洗顔可' },
+      { ko:'당일 물 묻히지 않기', en:'Keep area dry on the day of treatment', zh:'当天不要沾水', ja:'当日は水に濡らさない' }
+    ]
+  },
+  { cat:'스킨부스터·재생', name:'리투오',
+    products:['Regeneration Booster','Soothing Ampoule'],
+    routine:{
+      '0-1':{ ko:'재생부스터 즉시 도포', en:'Apply Regeneration Booster immediately', zh:'立即涂抹再生精华素', ja:'リジェネレーションブースターを即時塗布' },
+      '2-4':{ ko:'재생부스터 + 수딩앰플 병행', en:'Regeneration Booster + Soothing Ampoule together', zh:'再生精华素+舒缓精华同时使用', ja:'再生ブースター＋スージングアンプル併用' }
+    },
+    cautions:[
+      { ko:'구진 2~3일 정상', en:'Papules for 2–3 days are normal', zh:'2~3天丘疹属正常', ja:'2〜3日の丘疹は正常' },
+      { ko:'세안 4시간 후부터', en:'Cleanse 4 hours after treatment', zh:'治疗后4小时后洗脸', ja:'施術4時間後に洗顔可' }
+    ]
+  },
+  { cat:'스킨부스터·재생', name:'줄기세포',
+    products:['Regeneration Booster','Soothing Ampoule'],
+    routine:{
+      '0-1':{ ko:'재생부스터 즉시 도포', en:'Apply Regeneration Booster immediately', zh:'立即涂抹再生精华素', ja:'リジェネレーションブースターを即時塗布' },
+      '2-4':{ ko:'재생부스터 집중 사용', en:'Intensive Regeneration Booster use', zh:'集中使用再生精华素', ja:'再生ブースターを集中使用' }
+    },
+    cautions:[
+      { ko:'냉장 보관 필수', en:'Must be refrigerated', zh:'必须冷藏保存', ja:'冷蔵保管必須' },
+      { ko:'피부 자극 최소화', en:'Minimize skin irritation', zh:'尽量减少皮肤刺激', ja:'皮膚への刺激を最小限に' }
+    ]
+  },
+  { cat:'스킨부스터·재생', name:'엑소좀',
+    products:['Regeneration Booster','Soothing Ampoule'],
+    routine:{
+      '0-1':{ ko:'재생부스터 즉시 적용', en:'Apply Regeneration Booster immediately', zh:'立即使用再生精华素', ja:'再生ブースターを即時使用' },
+      '2-4':{ ko:'재생부스터 + 수딩앰플 병행', en:'Regeneration Booster + Soothing Ampoule together', zh:'再生精华素+舒缓精华同时使用', ja:'再生ブースター＋スージングアンプル併用' }
+    },
+    cautions:[
+      { ko:'세안 4시간 후부터', en:'Cleanse 4 hours after treatment', zh:'治疗后4小时后洗脸', ja:'施術4時間後に洗顔可' },
+      { ko:'피부 자극 최소화', en:'Minimize skin irritation', zh:'尽量减少皮肤刺激', ja:'皮膚への刺激を最小限に' }
+    ]
+  },
+  { cat:'스킨부스터·재생', name:'PRP',
+    products:['Regeneration Booster','Soothing Ampoule'],
+    routine:{
+      '0-1':{ ko:'재생부스터 즉시 도포', en:'Apply Regeneration Booster immediately', zh:'立即涂抹再生精华素', ja:'再生ブースターを即時塗布' },
+      '2-4':{ ko:'수분 + 재생 집중 관리', en:'Intensive hydration + regeneration care', zh:'集中保湿+再生护理', ja:'保湿＋再生を集中ケア' }
+    },
+    cautions:[
+      { ko:'당일 세안 자제', en:'Avoid cleansing on the day of treatment', zh:'当天避免洗脸', ja:'当日は洗顔自重' },
+      { ko:'멍 2~3일 정상', en:'Bruising for 2–3 days is normal', zh:'2~3天淤青属正常', ja:'2〜3日のあざは正常' }
+    ]
+  },
+  { cat:'스킨부스터·재생', name:'스킨부스터',
+    products:['Regeneration Booster','Soothing Ampoule','Mineral Shield SPF50+'],
+    routine:{
+      '0-1':{ ko:'재생부스터 즉시 도포', en:'Apply Regeneration Booster immediately', zh:'立即涂抹再生精华素', ja:'再生ブースターを即時塗布' },
+      '2-4':{ ko:'보습 + 재생 집중', en:'Intensive hydration + regeneration', zh:'集中保湿+再生', ja:'集中保湿＋再生' }
+    },
+    cautions:[
+      { ko:'구진 2~3일 정상', en:'Papules for 2–3 days are normal', zh:'2~3天丘疹属正常', ja:'2〜3日の丘疹は正常' },
+      { ko:'세안 후 부드럽게 도포', en:'Apply gently after cleansing', zh:'洁面后轻柔涂抹', ja:'洗顔後に優しく塗布' }
+    ]
+  },
+  { cat:'기타', name:'실리프팅',
+    products:['Soothing Ampoule','Peptide Repair Cream'],
+    routine:{
+      '0-1':{ ko:'수딩앰플 순하게 도포', en:'Apply Soothing Ampoule gently', zh:'轻柔涂抹舒缓精华', ja:'スージングアンプルを優しく塗布' },
+      '2-4':{ ko:'펩타이드크림 저녁 집중', en:'Peptide Cream intensive in the evening', zh:'晚间集中使用肽修复霜', ja:'夜にペプチドクリームを集中使用' }
+    },
+    cautions:[
+      { ko:'격렬한 표정 변화 자제 (1주)', en:'Avoid exaggerated facial expressions for 1 week', zh:'一周内避免夸张的面部表情', ja:'1週間大げさな表情変化を控える' },
+      { ko:'고온 사우나 금지', en:'No hot sauna', zh:'禁止高温桑拿', ja:'高温サウナ禁止' },
+      { ko:'마사지 금지', en:'No massage on face', zh:'禁止按摩', ja:'マッサージ禁止' }
+    ]
+  },
+  { cat:'기타', name:'MTS',
+    products:['Soothing Ampoule','Recovery Barrier Cream'],
+    routine:{
+      '0-1':{ ko:'수딩앰플 즉시 도포', en:'Apply Soothing Ampoule immediately', zh:'立即涂抹舒缓精华', ja:'スージングアンプルを即時塗布' },
+      '2-4':{ ko:'배리어크림 + 수딩앰플 병행', en:'Barrier Cream + Soothing Ampoule together', zh:'修复屏障霜+舒缓精华同时使用', ja:'バリアクリーム＋スージングアンプル併用' }
+    },
+    cautions:[
+      { ko:'세안 4시간 후부터', en:'Cleanse 4 hours after treatment', zh:'治疗后4小时后洗脸', ja:'施術4時間後に洗顔可' },
+      { ko:'자외선 차단 필수', en:'Sun protection essential', zh:'必须防晒', ja:'日焼け止め必須' }
+    ]
+  },
+  { cat:'기타', name:'아쿠아필',
+    products:['Soothing Ampoule','Mineral Shield SPF50+'],
+    routine:{
+      '0-1':{ ko:'수딩앰플 도포', en:'Apply Soothing Ampoule', zh:'涂抹舒缓精华', ja:'スージングアンプルを塗布' },
+      '2-4':{ ko:'보습 + 자외선 차단 유지', en:'Continue moisturizing + sun protection', zh:'持续保湿+防晒', ja:'保湿＋日焼け止めを継続' }
+    },
+    cautions:[
+      { ko:'세안 부드럽게', en:'Cleanse gently', zh:'轻柔洗脸', ja:'優しく洗顔' },
+      { ko:'자외선 차단 필수', en:'Sun protection essential', zh:'必须防晒', ja:'日焼け止め必須' }
+    ]
+  },
+];
+
+const PRODUCT_INFO = {
+  'Soothing Ampoule':       {ko:'수딩앰플',        en:'Soothing Ampoule',       zh:'舒缓精华',      ja:'スージングアンプル',    how:{ko:'아침·저녁 세안 후 적당량 부드럽게 흡수',en:'AM/PM after cleansing',zh:'早晚洁面后适量涂抹',ja:'朝晩洗顔後に適量吸収'}, tag:'morning'},
+  'Recovery Barrier Cream': {ko:'배리어크림',       en:'Recovery Barrier Cream', zh:'修复屏障霜',     ja:'リカバリーバリアクリーム', how:{ko:'저녁 마지막 단계에 충분히 도포',en:'Last step evening',zh:'晚间最后步骤',ja:'夜のスキンケア最後'}, tag:'evening'},
+  'Mineral Shield SPF50+':  {ko:'미네랄 선크림 SPF50+', en:'Mineral Shield SPF50+', zh:'矿物防晒霜SPF50+', ja:'ミネラルサンスクリーンSPF50+', how:{ko:'외출 30분 전 도포',en:'30 min before sun exposure',zh:'出门前30分钟涂抹',ja:'外出30分前に塗布'}, tag:'morning'},
+  'Deep Hydration Ampoule': {ko:'딥수분앰플',       en:'Deep Hydration Ampoule', zh:'深层保湿精华',   ja:'ディープモイスチャーアンプル', how:{ko:'아침·저녁 두드리듯 흡수',en:'Pat gently AM/PM',zh:'早晚轻拍吸收',ja:'朝晩タッピング吸収'}, tag:'morning'},
+  'Peptide Repair Cream':   {ko:'펩타이드크림',     en:'Peptide Repair Cream',   zh:'胜肽修复霜',    ja:'ペプチドリペアクリーム', how:{ko:'저녁 수분 후 덧바르기',en:'Evening after moisturizer',zh:'晚间乳液后涂抹',ja:'夜の保湿後に重ね塗り'}, tag:'evening'},
+  'Ultra-Calm Ampoule':     {ko:'울트라캄앰플',     en:'Ultra-Calm Ampoule',     zh:'舒缓镇静精华',  ja:'ウルトラカームアンプル', how:{ko:'붉음·열감 부위 집중 도포',en:'Focus on red/irritated areas',zh:'重点涂于泛红部位',ja:'赤みや熱感部位に集中'}, tag:'asap'},
+  'Brightening Ampoule':    {ko:'브라이트닝앰플',   en:'Brightening Ampoule',    zh:'亮肤精华',      ja:'ブライトニングアンプル', how:{ko:'저녁 기미·잡티 부위 집중',en:'Focus on spots every evening',zh:'晚间针对色斑部位',ja:'夜の色素沈着部位に集中'}, tag:'evening'},
+  'Regeneration Booster':   {ko:'재생부스터',       en:'Regeneration Booster',   zh:'再生精华素',    ja:'リジェネレーションブースター', how:{ko:'시술 직후 즉시 + 이후 아침·저녁',en:'Immediately after, then AM/PM',zh:'术后立即，之后早晚',ja:'施術直後に塗布、その後朝晩'}, tag:'asap'},
+  'Anti-Bruise Arnica Gel': {ko:'아르니카젤',       en:'Anti-Bruise Arnica Gel', zh:'消瘀草本凝胶',  ja:'アルニカアンチブルーズジェル', how:{ko:'멍·부종 부위 하루 3~4회',en:'Apply to bruised areas 3-4x daily',zh:'淤青部位每日3-4次',ja:'あざ部位に1日3-4回'}, tag:'asap'},
+  'Cooling Gel':            {ko:'쿨링젤',           en:'Cooling Gel',            zh:'冷却凝胶',      ja:'クーリングジェル', how:{ko:'시술 직후 즉시 도포 (냉장 보관 권장)',en:'Apply immediately, refrigerate',zh:'术后立即涂抹，建议冷藏',ja:'施術直後に塗布，冷蔵推奨'}, tag:'asap'},
+};
+
+const SKIN1 = [{code:'D',name:'건성',desc:'당김'},{code:'O',name:'지성',desc:'번들'},{code:'C',name:'복합성',desc:'부위별'},{code:'N',name:'중성',desc:'편안'}];
+const SKIN2 = [{code:'S',name:'민감성',desc:'따가움'},{code:'R',name:'홍조성',desc:'붉어짐'},{code:'P',name:'색소침착',desc:'기미·잡티'},{code:'A',name:'노화성',desc:'탄력저하'},{code:'T',name:'트러블',desc:'여드름'}];
+
+const LABELS = {
+  ko:{products:'처방 제품',routine:'케어 루틴',cautions:'주의사항',treatments:'시술',skinType:'피부타입',serial:'처방번호',date:'처방일',clinic:'클리닉',patient:'환자명',footer:'본 처방전은 RECOVIA 레코바 제품 사용 안내용입니다.',morning:'아침',evening:'저녁',asap:'즉시'},
+  en:{products:'Prescribed Products',routine:'Care Routine',cautions:'Precautions',treatments:'Treatment',skinType:'Skin Type',serial:'Rx No.',date:'Date',clinic:'Clinic',patient:'Patient',footer:'This prescription is a guide for RECOVIA product use.',morning:'Morning',evening:'Evening',asap:'Immediate'},
+  zh:{products:'处方产品',routine:'护肤程序',cautions:'注意事项',treatments:'项目',skinType:'肤质',serial:'处方号',date:'日期',clinic:'诊所',patient:'患者',footer:'本处方为RECOVIA产品使用指引。',morning:'早',evening:'晚',asap:'即刻'},
+  ja:{products:'処方製品',routine:'ケアルーティン',cautions:'注意事項',treatments:'施術',skinType:'肌タイプ',serial:'処方番号',date:'処方日',clinic:'クリニック',patient:'患者名',footer:'本処方はRECOVIA製品の使用案内です。',morning:'朝',evening:'夜',asap:'即時'},
+};
+
+// ================================================================
+// 상태
+// ================================================================
+let state = {
+  clinic: null,
+  clinicCode: '',
+  patientKo: '',
+  patientSelected: '',
+  treatments: [],
+  customTx: [],
+  skinType: { a1: '', a2: [] },
+  lang: 'ko',
+  gasUrl: '',
+  gasClinicInfo: null,  // GAS에서 조회한 클리닉 정보 { clinicName, grade, discount, isKeyDoctor }
+};
+
+// ================================================================
+// 로그인
+// ================================================================
+function focusPin() { document.getElementById('pin1').focus(); }
+
+function pinMove(n) {
+  const el = document.getElementById('pin' + n);
+  if (el.value && n < 4) document.getElementById('pin' + (n+1)).focus();
+  if (n === 4 && el.value) doLogin();
+}
+
+function pinBack(e, n) {
+  if (e.key === 'Backspace' && !document.getElementById('pin'+n).value && n > 1) {
+    document.getElementById('pin'+(n-1)).focus();
+  }
+  if (e.key === 'Enter') doLogin();
+}
+
+async function doLogin() {
+  let code = document.getElementById('loginCode').value.trim().toUpperCase();
+  const pin = ['pin1','pin2','pin3','pin4'].map(id=>document.getElementById(id).value).join('');
+  const errEl = document.getElementById('loginError');
+  const remember = document.getElementById('rememberMe')?.checked;
+  const loginBtn = document.querySelector('.btn-login');
+
+  if (!code) { errEl.textContent='클리닉 코드를 입력하세요.'; return; }
+  if (pin.length<4) { errEl.textContent='PIN 4자리를 모두 입력하세요.'; return; }
+
+  // 코드 또는 병원명으로 로그인 가능 (로컬 폴백 우선 확인)
+  let resolvedCode = code;
+  let clinic = CLINIC_DB[code];
+  if (!clinic) {
+    const inputLower = code.toLowerCase();
+    for (const [k, v] of Object.entries(CLINIC_DB)) {
+      const savedName = localStorage.getItem('recovia_clinicname_' + k) || v.name;
+      if (savedName.toLowerCase() === inputLower || k.toLowerCase() === inputLower) {
+        resolvedCode = k; clinic = v; break;
+      }
+    }
+  }
+
+  // 로컬에 없으면 GAS에서 조회 시도
+  if (!clinic) {
+    errEl.textContent = '클리닉 확인 중...';
+    loginBtn.disabled = true;
+    const gasClinic = await fetchClinicFromGAS(resolvedCode);
+    loginBtn.disabled = false;
+    if (gasClinic) {
+      clinic = { name: gasClinic.clinicName, pin: null }; // PIN은 로컬에서만 관리
+    } else {
+      errEl.textContent = '등록되지 않은 클리닉 코드 또는 병원명입니다.';
+      return;
+    }
+  }
+  code = resolvedCode;
+
+  const savedPin = localStorage.getItem('recovia_pin_'+code) || clinic.pin;
+  if (savedPin && pin !== savedPin) { errEl.textContent='PIN이 올바르지 않습니다.'; return; }
+
+  if (remember) {
+    const expiry = Date.now()+(30*24*60*60*1000);
+    localStorage.setItem('recovia_remember_code', code);
+    localStorage.setItem('recovia_remember_expiry', String(expiry));
+    localStorage.setItem('recovia_remember_pin', pin);
+  } else {
+    ['recovia_remember_code','recovia_remember_expiry','recovia_remember_pin'].forEach(k=>localStorage.removeItem(k));
+  }
+
+  // GAS에서 최신 클리닉 정보(할인율 등) 조회
+  loginBtn.disabled = true;
+  errEl.textContent = '정보 불러오는 중...';
+  const gasInfo = await fetchClinicFromGAS(code);
+  loginBtn.disabled = false;
+  errEl.textContent = '';
+
+  if (gasInfo) {
+    state.gasClinicInfo = gasInfo; // { clinicName, grade, discount, isKeyDoctor }
+  }
+
+  state.clinic = clinic;
+  state.clinicCode = code;
+  state.gasUrl = MASTER_GAS_URL;
+  state.customTx = JSON.parse(localStorage.getItem('recovia_custom_'+code)||'[]');
+  const savedName = gasInfo?.clinicName || localStorage.getItem('recovia_clinicname_' + code) || clinic.name;
+  state.clinic.name = savedName;
+  document.getElementById('headerClinicName').textContent = savedName;
+  document.getElementById('headerCode').textContent = code;
+  document.getElementById('settingClinicName').textContent = savedName;
+  document.getElementById('settingCode').textContent = code;
+  document.getElementById('gasUrlInput').value = MASTER_GAS_URL;
+  document.getElementById('clinicNameInput').value = savedName;
+
+  // 할인율 배지 표시
+  if (gasInfo?.discount > 0) {
+    const badge = document.getElementById('discountBadge');
+    if (badge) {
+      badge.textContent = gasInfo.isKeyDoctor
+        ? `🏆 키닥터 ${gasInfo.discount}% 할인 적용`
+        : `${gasInfo.discount}% 할인 적용 중`;
+      badge.style.display = 'inline-block';
+    }
+  }
+
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('app').style.flexDirection = 'column';
+
+  // 제품 목록 GAS에서 로드
+  await loadProductsFromGAS();
+  renderChips(); renderSkin(); renderManage();
+}
+
+function doLogout() {
+  if (!confirm('로그아웃 하시겠습니까?')) return;
+  state = { clinic:null, clinicCode:'', patientKo:'', patientSelected:'', treatments:[], customTx:[], skinType:{a1:'',a2:[]}, lang:'ko', gasUrl:'' };
+  ['pin1','pin2','pin3','pin4'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('loginCode').value = '';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+// ================================================================
+// 탭 전환
+// ================================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  const idx = ['input','skin','rx','manage','settings'].indexOf(name);
+  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+}
+
+// ================================================================
+// 환자명 + 번역
+// ================================================================
+// 환자명 번역 — 라벨 파일과 동일한 방식
+// ================================================================
+let nameTranslations = { en:'', zh:'', ja:'' };
+let selectedNameLang = '';
+
+function onNameInput() {
+  const v = document.getElementById('patientKo').value.trim();
+  state.patientKo = v;
+  document.getElementById('nameTransBtn').disabled = !v;
+  if (!v) {
+    document.getElementById('namePreview').style.display = 'none';
+    nameTranslations = { en:'', zh:'', ja:'' };
+    selectedNameLang = '';
+    state.patientSelected = '';
+  }
+}
+
+// 라벨과 동일 — 접두사로 호칭 방지
+async function gTransName(name, tl) {
+  const prefix = { en:'Name: ', 'zh-CN':'姓名：', ja:'名前：' }[tl] || '';
+  const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=${tl}&dt=t&q=${encodeURIComponent(prefix+name)}`);
+  const d = await r.json();
+  let raw = d[0].map(s=>s[0]).join('').trim();
+  raw = raw.replace(/^(Name|Names?)\s*:\s*/i,'');
+  raw = raw.replace(/^(姓名|名字|名)\s*[：:]\s*/,'');
+  raw = raw.replace(/^(名前|お名前|氏名)\s*[：:]\s*/,'');
+  if(tl==='en')    raw = raw.replace(/^(Mr\.?|Mrs\.?|Ms\.?|Miss\.?|Dr\.?|Prof\.?|Sir\.?)\s+/gi,'');
+  if(tl==='zh-CN') raw = raw.replace(/\s*(先生|女士|小姐|同志|君|氏|太太|夫人)$/g,'');
+  if(tl==='ja')    raw = raw.replace(/\s*(様|さん|くん|君|氏|先生|ちゃん|殿)$/g,'');
+  return raw.trim() || name;
+}
+
+async function translateName() {
+  const ko = document.getElementById('patientKo').value.trim();
+  if (!ko) return;
+  const btn = document.getElementById('nameTransBtn');
+  btn.textContent = '번역 중...'; btn.disabled = true;
+  try {
+    const [en, zh, ja] = await Promise.all([
+      gTransName(ko, 'en'),
+      gTransName(ko, 'zh-CN'),
+      gTransName(ko, 'ja'),
+    ]);
+    nameTranslations = { en, zh, ja };
+    document.getElementById('npEn').textContent = en;
+    document.getElementById('npZh').textContent = zh;
+    document.getElementById('npJa').textContent = ja;
+    // 선택 초기화
+    ['en','zh','ja'].forEach(l => {
+      document.getElementById('npRow_'+l).classList.remove('selected');
+      document.getElementById('npChk_'+l).style.display = 'none';
+    });
+    selectedNameLang = '';
+    state.patientSelected = ko; // 기본: 한국어
+    // 현재 언어가 외국어면 자동 선택
+    if (state.lang !== 'ko') selectName(state.lang);
+    document.getElementById('namePreview').style.display = 'block';
+  } catch(e) {
+    alert('번역 실패. 이름 그대로 사용됩니다.');
+  }
+  btn.textContent = '🌐 번역'; btn.disabled = false;
+}
+
+function selectName(l) {
+  if (!nameTranslations[l]) return;
+  selectedNameLang = l;
+  state.patientSelected = nameTranslations[l];
+  ['en','zh','ja'].forEach(s => {
+    document.getElementById('npRow_'+s).classList.remove('selected');
+    document.getElementById('npChk_'+s).style.display = 'none';
+  });
+  document.getElementById('npRow_'+l).classList.add('selected');
+  document.getElementById('npChk_'+l).style.display = 'inline';
+  // 처방전 탭 열려있으면 바로 갱신
+  if (document.getElementById('tab-rx').classList.contains('active')) generateRx();
+}
+
+function clearPatient() {
+  state.patientKo = ''; state.patientSelected = '';
+  document.getElementById('patientKo').value = '';
+  document.getElementById('namePreview').style.display = 'none';
+  document.getElementById('nameTransBtn').disabled = true;
+  nameTranslations = { en:'', zh:'', ja:'' };
+  selectedNameLang = '';
+  ['en','zh','ja'].forEach(l => {
+    document.getElementById('npRow_'+l).classList.remove('selected');
+    document.getElementById('npChk_'+l).style.display = 'none';
+  });
+}
+
+function clearAll() {
+  clearPatient();
+  clearTx();
+  state.skinType = { a1:'', a2:[] };
+  renderSkin();
+}
+
+// ================================================================
+// 시술 칩
+// ================================================================
+function getAllTx() { return [...DEFAULT_TX, ...state.customTx]; }
+
+function renderChips() {
+  const cats = ['레이저·필링','고주파·초음파','필러·보톡스','스킨부스터·재생','기타'];
+  const c = document.getElementById('treatmentChips');
+  c.innerHTML = '';
+  cats.forEach(cat => {
+    const items = getAllTx().filter(t => t.cat === cat);
+    if (!items.length) return;
+    const lbl = document.createElement('div');
+    lbl.className = 'cat-label'; lbl.textContent = cat;
+    c.appendChild(lbl);
+    const grp = document.createElement('div');
+    grp.className = 'chip-group';
+    items.forEach(t => {
+      const ch = document.createElement('div');
+      ch.className = 'chip' + (t.custom?' custom':'') + (state.treatments.includes(t.name)?' selected':'');
+      ch.textContent = t.name;
+      ch.onclick = () => {
+        const i = state.treatments.indexOf(t.name);
+        if (i===-1) state.treatments.push(t.name); else state.treatments.splice(i,1);
+        ch.classList.toggle('selected');
+        document.getElementById('txCount').textContent = '선택: ' + state.treatments.length + '개';
+      };
+      grp.appendChild(ch);
+    });
+    c.appendChild(grp);
+  });
+  document.getElementById('txCount').textContent = '선택: ' + state.treatments.length + '개';
+}
+
+function clearTx() { state.treatments = []; renderChips(); }
+
+function addCustom() {
+  const name = document.getElementById('customTreat').value.trim();
+  const cat = document.getElementById('customCat').value;
+  if (!name) return;
+  if (getAllTx().some(t => t.name === name)) { alert('이미 있는 시술입니다.'); return; }
+  const obj = {
+    cat, name, custom: true,
+    products: ['Soothing Ampoule', 'Mineral Shield SPF50+'],
+    routine: {
+      '0-1': { ko:'수딩앰플 즉시 도포', en:'Apply Soothing Ampoule immediately', zh:'立即涂抹舒缓精华', ja:'スージングアンプルを即時塗布' },
+      '2-4': { ko:'보습 + 자외선 차단', en:'Moisturize + sun protection', zh:'保湿+防晒', ja:'保湿＋日焼け止め' },
+    },
+    cautions: [
+      { ko:'피부 자극 최소화', en:'Minimize skin irritation', zh:'尽量减少皮肤刺激', ja:'皮膚への刺激を最小限に' }
+    ]
+  };
+  state.customTx.push(obj);
+  localStorage.setItem('recovia_custom_' + state.clinicCode, JSON.stringify(state.customTx));
+  document.getElementById('customTreat').value = '';
+  renderChips(); renderManage();
+}
+
+// ================================================================
+// 피부타입 칩
+// ================================================================
+function renderSkin() {
+  const render = (arr, elId, isA1) => {
+    const el = document.getElementById(elId); el.innerHTML = '';
+    arr.forEach(s => {
+      const ch = document.createElement('div');
+      ch.className = 'skin-chip' + ((isA1 ? state.skinType.a1===s.code : state.skinType.a2.includes(s.code)) ? ' selected' : '');
+      ch.innerHTML = `<div class="code">${s.code}</div><div>${s.name}</div><div style="font-size:10px;opacity:.7">${s.desc}</div>`;
+      ch.onclick = () => {
+        if (isA1) state.skinType.a1 = s.code;
+        else { const i=state.skinType.a2.indexOf(s.code); i===-1?state.skinType.a2.push(s.code):state.skinType.a2.splice(i,1); }
+        renderSkin(); updateSkinResult();
+      };
+      el.appendChild(ch);
+    });
+  };
+  render(SKIN1, 'skinA1', true);
+  render(SKIN2, 'skinA2', false);
+}
+
+function updateSkinResult() {
+  const {a1,a2} = state.skinType;
+  const r = a1 ? [a1,...a2].join('+') : (a2.length?a2.join('+'):'미선택');
+  document.getElementById('skinResult').textContent = r;
+}
+
+function getSkinStr() {
+  const {a1,a2} = state.skinType;
+  return a1 ? [a1,...a2].join('+') : a2.join('+');
+}
+
+// ================================================================
+// 처방전 생성
+// ================================================================
+function generateRx() {
+  const L = LABELS[state.lang];
+  const patient = state.patientSelected || state.patientKo || '—';
+  const clinic = state.clinic?.name || 'RECOVIA 레코바';
+  const skinType = getSkinStr() || '—';
+  const allTx = getAllTx();
+  const selTx = state.treatments.map(n => allTx.find(t => t.name===n)).filter(Boolean);
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('ko-KR');
+  const serial = `RX-${String(today.getFullYear()).slice(2)}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}-${state.clinicCode}-${String(today.getHours()).padStart(2,'0')}${String(today.getMinutes()).padStart(2,'0')}`;
+
+  const productSet = new Set(); selTx.forEach(t => t.products.forEach(p => productSet.add(p)));
+  const products = [...productSet];
+
+  const routineKeys = ['0-1','2-4','5-7','1-4주'];
+  const routineMap = {};
+  routineKeys.forEach(k => routineMap[k] = new Set());
+  // 루틴: 언어에 맞는 텍스트를 꺼냄 (객체이면 lang 키로, 문자열이면 그대로)
+  selTx.forEach(t => {
+    if (t.routine) {
+      Object.entries(t.routine).forEach(([k, v]) => {
+        if (routineMap[k]) {
+          const text = (typeof v === 'object') ? (v[state.lang] || v.ko) : v;
+          routineMap[k].add(text);
+        }
+      });
+    }
+  });
+
+  // 주의사항: 언어에 맞는 텍스트를 꺼냄 (객체이면 lang 키로, 문자열이면 그대로)
+  const cautionSet = new Set();
+  selTx.forEach(t => {
+    t.cautions?.forEach(c => {
+      const text = (typeof c === 'object') ? (c[state.lang] || c.ko) : c;
+      cautionSet.add(text);
+    });
+  });
+  const cautions = [...cautionSet];
+
+  const pInfo = getProductInfo();
+  const productHtml = products.map((p,i) => {
+    const info = pInfo[p]; if(!info) return '';
+    const name = info[state.lang]||info.ko;
+    const how = info.how[state.lang]||info.how.ko;
+    const tagClass = {morning:'tag-morning',evening:'tag-evening',asap:'tag-asap'}[info.tag]||'';
+    const tagLabel = {morning:L.morning,evening:L.evening,asap:L.asap}[info.tag]||'';
+    return `<div class="rx-product"><div class="rx-num">${i+1}</div><div style="flex:1"><div class="rx-pname"><span class="rx-tag ${tagClass}">${tagLabel}</span>${name}</div><div class="rx-phow">${how}</div></div></div>`;
+  }).join('');
+
+  const routineHtml = routineKeys.map(k => {
+    const items = [...routineMap[k]]; if(!items.length) return '';
+    const dayLabels = {
+      ko: { '0-1':'Day 0~1일', '2-4':'Day 2~4일', '5-7':'Day 5~7일', '1-4주':'1~4주' },
+      en: { '0-1':'Day 0–1',   '2-4':'Day 2–4',   '5-7':'Day 5–7',   '1-4주':'Week 1–4' },
+      zh: { '0-1':'第0~1天',   '2-4':'第2~4天',   '5-7':'第5~7天',   '1-4주':'第1~4周' },
+      ja: { '0-1':'Day 0〜1日','2-4':'Day 2〜4日','5-7':'Day 5〜7日','1-4주':'1〜4週間' },
+    };
+    const dayLabel = (dayLabels[state.lang] || dayLabels.ko)[k] || `Day ${k}`;
+    return `<div class="rx-routine-row"><span class="rx-day-badge">${dayLabel}</span><span>${items.join(' · ')}</span></div>`;
+  }).join('');
+
+  const cautionHtml = cautions.map(c => `<div class="rx-caution-item">${c}</div>`).join('');
+
+  document.getElementById('rxOutput').innerHTML = `
+    <div class="rx-header">
+      <div class="clinic-nm">${clinic}</div>
+      <div class="brand-big">RECOVIA</div>
+      <div class="brand-ko-sm">레코바</div>
+    </div>
+    <div class="rx-meta">
+      <div class="rx-meta-item"><span class="rx-meta-label">${L.serial}</span><span class="rx-serial-badge">${serial}</span></div>
+      <div class="rx-meta-item"><span class="rx-meta-label">${L.date}</span><span>${dateStr}</span></div>
+      <div class="rx-meta-item"><span class="rx-meta-label">${L.patient}</span><strong>${patient}</strong></div>
+      <div class="rx-meta-item"><span class="rx-meta-label">${L.skinType}</span><span>${skinType}</span></div>
+      <div class="rx-meta-item" style="grid-column:1/-1"><span class="rx-meta-label">${L.treatments}</span><span>${state.treatments.join(', ')||'—'}</span></div>
+    </div>
+    ${products.length?`<div class="rx-section-title">${L.products}</div>${productHtml}`:''}
+    ${routineHtml?`<div class="rx-section-title">${L.routine}</div>${routineHtml}`:''}
+    ${cautions.length?`<div class="rx-section-title">${L.cautions}</div>${cautionHtml}`:''}
+    <div class="rx-footer">${L.footer}<br><strong style="color:#A8D5C2">RECOVIA — Where Your Skin Recovers</strong></div>
+  `;
+}
+
+function setLang(lang) {
+  state.lang = lang;
+  document.querySelectorAll('.lang-btn').forEach((b,i) =>
+    b.classList.toggle('active', ['ko','en','zh','ja'][i]===lang)
+  );
+  // 번역된 이름이 있으면 해당 언어 자동 선택
+  if (lang !== 'ko' && nameTranslations[lang]) {
+    selectName(lang);
+  } else if (lang === 'ko') {
+    state.patientSelected = document.getElementById('patientKo').value.trim() || state.patientKo;
+  }
+  generateRx();
+}
+
+// ================================================================
+// 저장 + 인쇄
+// ================================================================
+async function savePrint() {
+  const statusEl = document.getElementById('saveStatus');
+  statusEl.textContent = '저장 중...';
+  const allTx = getAllTx();
+  const selTx = state.treatments.map(n=>allTx.find(t=>t.name===n)).filter(Boolean);
+  const routineKeys = ['0-1','2-4','5-7','1-4주'];
+  const routineMap = {};
+  routineKeys.forEach(k=>routineMap[k]=new Set());
+  selTx.forEach(t => {
+    if (t.routine) Object.entries(t.routine).forEach(([k,v]) => {
+      if (routineMap[k]) routineMap[k].add((typeof v==='object')?(v[state.lang]||v.ko):v);
+    });
+  });
+  const cautionArr = [];
+  selTx.forEach(t=>t.cautions?.forEach(c=>{
+    const text=(typeof c==='object')?(c[state.lang]||c.ko):c;
+    if(!cautionArr.includes(text))cautionArr.push(text);
+  }));
+
+  // 처방된 제품 목록 + 공급가 계산
+  const pInfo = getProductInfo();
+  const prescribedProducts = [...new Set(state.treatments.flatMap(n=>{
+    const t=getAllTx().find(t=>t.name===n); return t?t.products:[];
+  }))];
+  const supplyPrice = prescribedProducts.reduce((sum, p) => {
+    return sum + (pInfo[p]?.supplyPrice || 0);
+  }, 0);
+
+  const payload = {
+    action: 'savePrescription',
+    clinicCode: state.clinicCode,
+    clinicName: state.clinicCode + ' | ' + (state.clinic?.name||''),
+    patientName: state.patientSelected||state.patientKo||'',
+    procedures: state.treatments.join(', '),
+    skinType: getSkinStr(),
+    products: prescribedProducts.join(', '),
+    routine: routineKeys.filter(k=>routineMap[k].size>0).map(k=>`[Day ${k}] ${[...routineMap[k]].join(' · ')}`).join('\n'),
+    cautions: cautionArr.join('\n'),
+    language: state.lang,
+    supplyPrice: supplyPrice,
+    note: '',
+  };
+
+  try {
+    const res = await fetch(MASTER_GAS_URL, { method:'POST', body:JSON.stringify(payload) });
+    const r = await res.json();
+    if (r.ok) {
+      statusEl.textContent = `✓ 저장 완료 (${r.rxNo||''})`;
+    } else {
+      statusEl.textContent = '⚠ 저장 실패: ' + (r.error||'');
+    }
+  } catch { statusEl.textContent = '⚠ 네트워크 오류'; }
+
+  setTimeout(()=>window.print(), 400);
+  setTimeout(()=>{
+    state.patientKo=''; state.patientSelected='';
+    document.getElementById('patientKo').value='';
+    document.getElementById('namePreview').style.display='none';
+    nameTranslations = { en:'', zh:'', ja:'' };
+    selectedNameLang = '';
+    statusEl.textContent='';
+    switchTab('input');
+  }, 3500);
+}
+
+// ================================================================
+// 시술 관리
+// ================================================================
+function renderManage() {
+  const filter = document.getElementById('filterCat').value;
+  const items = getAllTx().filter(t => filter==='전체' || t.cat===filter);
+  const list = document.getElementById('manageList');
+  list.innerHTML = '';
+  items.forEach(t => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f9f9f9;border-radius:8px;margin-bottom:6px';
+    row.innerHTML = `<span style="font-size:10px;color:#888;background:#eee;padding:2px 7px;border-radius:4px;white-space:nowrap">${t.cat}</span><span style="flex:1;font-size:13px">${t.name}${t.custom?'<span style="font-size:10px;color:#A8D5C2;margin-left:6px">추가됨</span>':''}</span>`;
+    if (t.custom) {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-danger btn-sm';
+      btn.textContent = '삭제';
+      btn.onclick = () => {
+        if (!confirm(`"${t.name}" 삭제?`)) return;
+        state.customTx = state.customTx.filter(x => x.name !== t.name);
+        state.treatments = state.treatments.filter(n => n !== t.name);
+        localStorage.setItem('recovia_custom_'+state.clinicCode, JSON.stringify(state.customTx));
+        renderChips(); renderManage();
+      };
+      row.appendChild(btn);
+    }
+    list.appendChild(row);
+  });
+}
+
+// ================================================================
+// 설정 저장 / PIN 변경
+// ================================================================
+function saveSettings() {
+  // 병원명 변경
+  const newName = document.getElementById('clinicNameInput').value.trim();
+  if (newName && newName !== state.clinic.name) {
+    state.clinic.name = newName;
+    localStorage.setItem('recovia_clinicname_' + state.clinicCode, newName);
+    document.getElementById('settingClinicName').textContent = newName;
+    document.getElementById('headerClinicName').textContent = newName;
+  }
+  // GAS URL 저장
+  const url = document.getElementById('gasUrlInput').value.trim();
+  state.gasUrl = url;
+  localStorage.setItem('recovia_gas_' + state.clinicCode, url);
+  const el = document.getElementById('settingSaved');
+  el.textContent = '✓ 저장됨';
+  setTimeout(() => el.textContent='', 2000);
+}
+
+// ================================================================
+// PIN 변경
+// ================================================================
+function changePin() {
+  const cur = document.getElementById('curPin').value;
+  const nw = document.getElementById('newPin').value;
+  const nw2 = document.getElementById('newPin2').value;
+  const msg = document.getElementById('pinMsg');
+  const saved = localStorage.getItem('recovia_pin_' + state.clinicCode) || state.clinic?.pin || '';
+
+  if (cur !== saved) { msg.textContent = '현재 PIN이 올바르지 않습니다.'; return; }
+  if (nw.length !== 4 || !/^\d{4}$/.test(nw)) { msg.textContent = 'PIN은 숫자 4자리여야 합니다.'; return; }
+  if (nw !== nw2) { msg.textContent = '새 PIN이 일치하지 않습니다.'; return; }
+
+  localStorage.setItem('recovia_pin_' + state.clinicCode, nw);
+  state.clinic.pin = nw;
+  msg.style.color = '#27ae60';
+  msg.textContent = '✓ PIN이 변경되었습니다.';
+  ['curPin','newPin','newPin2'].forEach(id => document.getElementById(id).value='');
+  setTimeout(() => { msg.textContent=''; msg.style.color='#e74c3c'; }, 3000);
+}
+
+// ================================================================
+// 마스터 코드로 PIN 초기화
+// ================================================================
+function resetPinByMaster() {
+  const master = document.getElementById('masterCode').value.trim();
+  const nw = document.getElementById('masterNewPin').value;
+  const nw2 = document.getElementById('masterNewPin2').value;
+  const msg = document.getElementById('masterMsg');
+
+  if (!master) { msg.textContent = '마스터 코드를 입력하세요.'; return; }
+  if (nw.length !== 4 || !/^\d{4}$/.test(nw)) { msg.textContent = '새 PIN은 숫자 4자리여야 합니다.'; return; }
+  if (nw !== nw2) { msg.textContent = '새 PIN이 일치하지 않습니다.'; return; }
+
+  // 마스터코드 검증: MASTER_DB 또는 클리닉별 마스터코드 확인
+  const validMaster = MASTER_DB[state.clinicCode] || MASTER_DB['GLOBAL'];
+  if (master !== validMaster) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = '마스터 코드가 올바르지 않습니다. RECOVIA 본원에 문의하세요.';
+    return;
+  }
+
+  // PIN 초기화
+  localStorage.setItem('recovia_pin_' + state.clinicCode, nw);
+  if (state.clinic) state.clinic.pin = nw;
+  msg.style.color = '#27ae60';
+  msg.textContent = '✓ PIN이 초기화되었습니다. 새 PIN으로 로그인해 주세요.';
+  ['masterCode','masterNewPin','masterNewPin2'].forEach(id => document.getElementById(id).value='');
+  setTimeout(() => {
+    msg.textContent='';
+    msg.style.color='#e74c3c';
+    doLogout(); // 새 PIN으로 재로그인 유도
+  }, 2500);
+}
+
+// ================================================================
+// 초기화
+// ================================================================
+window.onload = async () => {
+  renderSkin();
+  const code   = localStorage.getItem('recovia_remember_code');
+  const expiry = localStorage.getItem('recovia_remember_expiry');
+  const pin    = localStorage.getItem('recovia_remember_pin');
+  if (code && expiry && pin && Date.now() < parseInt(expiry)) {
+    const clinic = CLINIC_DB[code];
+    const validPin = localStorage.getItem('recovia_pin_'+code) || clinic?.pin;
+    if ((clinic || true) && (!validPin || pin === validPin)) {
+      // GAS에서 클리닉 정보 조회
+      const gasInfo = await fetchClinicFromGAS(code);
+      const clinicName = gasInfo?.clinicName
+        || localStorage.getItem('recovia_clinicname_' + code)
+        || clinic?.name || code;
+
+      state.clinic = clinic || { name: clinicName, pin };
+      state.clinicCode = code;
+      state.gasUrl = MASTER_GAS_URL;
+      state.gasClinicInfo = gasInfo;
+      state.customTx = JSON.parse(localStorage.getItem('recovia_custom_'+code)||'[]');
+      state.clinic.name = clinicName;
+
+      document.getElementById('headerClinicName').textContent = clinicName;
+      document.getElementById('headerCode').textContent = code;
+      document.getElementById('settingClinicName').textContent = clinicName;
+      document.getElementById('settingCode').textContent = code;
+      document.getElementById('gasUrlInput').value = MASTER_GAS_URL;
+      document.getElementById('clinicNameInput').value = clinicName;
+
+      // 할인율 배지
+      if (gasInfo?.discount > 0) {
+        const badge = document.getElementById('discountBadge');
+        if (badge) {
+          badge.textContent = gasInfo.isKeyDoctor
+            ? `🏆 키닥터 ${gasInfo.discount}% 할인 적용`
+            : `${gasInfo.discount}% 할인 적용 중`;
+          badge.style.display = 'inline-block';
+        }
+      }
+
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      document.getElementById('app').style.flexDirection = 'column';
+
+      // 제품 목록 GAS 로드
+      await loadProductsFromGAS();
+      renderChips(); renderSkin(); renderManage();
+    }
+  }
+};
+</script>
+</body>
+</html>
